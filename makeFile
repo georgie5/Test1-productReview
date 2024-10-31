@@ -1,4 +1,0 @@
-.PHONY: run 
-run:
-	@echo 'RUnning application...'
-	@go run ./cmd/api -port=4000 -env=development
