@@ -41,7 +41,7 @@ func main() {
 	flag.IntVar(&settings.port, "port", 4000, "API server port")
 	flag.StringVar(&settings.environment, "env", "development", "Environment (development|staging|production)")
 
-	flag.StringVar(&settings.db.dsn, "db-dsn", "postgres://user:password@localhost/productReviewDB?sslmode=disable", "PostgreSQL DSN")
+	flag.StringVar(&settings.db.dsn, "db-dsn", "postgres://productreview:product@localhost/productreview?sslmode=disable", "PostgreSQL DSN")
 	flag.Parse()
 
 	// Initialize the logger
