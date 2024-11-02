@@ -22,3 +22,10 @@ db/migrations/new:
 db/migrations/up:
 	@echo 'Running up migrations...'
 	migrate -path ./migrations -database ${PRODUCTREVIEW_DB_DSN} up
+
+##  addproduct: to insert products into the database
+.PHONY: addproduct
+addproduct:
+	@echo 'Creating product...'
+	curl -X POST -H "Content-Type: application/json" -d '{"name": "$(name)", "category": "$(category)", "image_url": "$(image_url)"}' http://localhost:4000/v1/products 
+

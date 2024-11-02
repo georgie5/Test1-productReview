@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
-	_ "github.com/julienschmidt/httprouter"
+	"github.com/georgie5/productReview/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
 type envelope map[string]any
@@ -105,4 +108,55 @@ func (a *applicationDependencies) readJSON(w http.ResponseWriter, r *http.Reques
 	}
 
 	return nil
+}
+
+func (a *applicationDependencies) readIDParam(r *http.Request, paramName string) (int64, error) {
+	// Get the URL parameters
+	params := httprouter.ParamsFromContext(r.Context())
+	// Convert the specified parameter from string to int
+	id, err := strconv.ParseInt(params.ByName(paramName), 10, 64)
+	if err != nil || id < 1 {
+		return 0, errors.New("invalid " + paramName + " parameter")
+	}
+
+	return id, nil
+}
+func (a *applicationDependencies) getSingleQueryParameter(queryParameters url.Values, key string, defaultValue string) string {
+
+	// url.Values is a key:value hash map of the query parameters
+	result := queryParameters.Get(key)
+	if result == "" {
+		return defaultValue
+	}
+	return result
+}
+
+// call when we have multiple comma-separated values
+func (a *applicationDependencies) getMultipleQueryParameters(queryParameters url.Values, key string, defaultValue []string) []string {
+
+	result := queryParameters.Get(key)
+	if result == "" {
+		return defaultValue
+	}
+	return strings.Split(result, ",")
+
+}
+
+// this method can cause a validation error when trying to convert the
+// string to a valid integer value
+func (a *applicationDependencies) getSingleIntegerParameter(queryParameters url.Values, key string, defaultValue int, v *validator.Validator) int {
+
+	result := queryParameters.Get(key)
+	if result == "" {
+		return defaultValue
+	}
+	// try to convert to an integer
+	intValue, err := strconv.Atoi(result)
+	if err != nil {
+		v.AddError(key, "must be an integer value")
+		return defaultValue
+	}
+
+	return intValue
+
 }
