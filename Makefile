@@ -23,9 +23,20 @@ db/migrations/up:
 	@echo 'Running up migrations...'
 	migrate -path ./migrations -database ${PRODUCTREVIEW_DB_DSN} up
 
+## db/migrations/up: apply all up database migrations
+.PHONY: db/migrations/down
+db/migrations/down:
+	@echo 'Running up migrations...'
+	migrate -path ./migrations -database ${PRODUCTREVIEW_DB_DSN} down	
+
 ##  addproduct: to insert products into the database
 .PHONY: addproduct
 addproduct:
 	@echo 'Creating product...'
 	curl -X POST -H "Content-Type: application/json" -d '{"name": "$(name)", "category": "$(category)", "image_url": "$(image_url)"}' http://localhost:4000/v1/products 
 
+##  addreview: to insert review to specific product into the database
+.PHONY: addreview
+addreview:
+	@echo 'Creating review...'
+	curl -X POST -H "Content-Type: application/json" -d '{"rating":$(rating), "content":"$(content)"}' http://localhost:4000/v1/products/$(productID)/reviews 

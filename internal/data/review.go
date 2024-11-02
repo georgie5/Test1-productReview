@@ -23,6 +23,7 @@ type Review struct {
 	Content      string    `json:"content"`
 	HelpfulCount int       `json:"helpful_count"`
 	CreatedAt    time.Time `json:"-"`
+	Version      int32     `json:"version"`
 }
 
 func ValidateReview(v *validator.Validator, review *Review) {
@@ -35,11 +36,15 @@ func (r ReviewModel) Insert(review *Review) error {
 	query := `
 		INSERT INTO reviews (product_id, rating, content, helpful_count, created_at)
 		VALUES ($1, $2, $3, $4, NOW())
-		RETURNING id, created_at
+		RETURNING id, created_at, version
 	`
 	args := []any{review.ProductID, review.Rating, review.Content, review.HelpfulCount}
 
-	return r.DB.QueryRow(query, args...).Scan(&review.ID, &review.CreatedAt)
+	return r.DB.QueryRow(query, args...).Scan(
+		&review.ID,
+		&review.CreatedAt,
+		&review.Version,
+	)
 
 }
 
@@ -51,7 +56,7 @@ func (r ReviewModel) Get(productID, reviewID int64) (*Review, error) {
 	}
 
 	query := `
-		SELECT id, product_id, rating, content, helpful_count, created_at
+		SELECT id, product_id, rating, content, helpful_count, created_at, version
 		FROM reviews
 		WHERE product_id = $1 AND id = $2
 	`
@@ -68,6 +73,7 @@ func (r ReviewModel) Get(productID, reviewID int64) (*Review, error) {
 		&review.Content,
 		&review.HelpfulCount,
 		&review.CreatedAt,
+		&review.Version,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -83,17 +89,17 @@ func (r ReviewModel) Update(review *Review) error {
 
 	query := `
 		UPDATE reviews
-		SET rating = $1, content = $2, helpful_count = $3
-		WHERE id = $4 AND product_id = $5
-		RETURNING id
+		SET rating = $1, content = $2, version = version + 1
+		WHERE id = $3 AND product_id = $4
+		RETURNING version
 	`
 
-	args := []any{review.Rating, review.Content, review.HelpfulCount, review.ID, review.ProductID}
+	args := []any{review.Rating, review.Content, review.ID, review.ProductID}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return r.DB.QueryRowContext(ctx, query, args...).Scan(&review.ID)
+	return r.DB.QueryRowContext(ctx, query, args...).Scan(&review.Version)
 
 }
 
@@ -131,7 +137,7 @@ func (r ReviewModel) Delete(productID, reviewID int64) error {
 func (r ReviewModel) GetAll(rating int, content string, filters Filters) ([]*Review, Metadata, error) {
 
 	query := fmt.Sprintf(`
-		SELECT COUNT(*) OVER(), id, product_id, rating, content, helpful_count, created_at
+		SELECT COUNT(*) OVER(), id, product_id, rating, content, helpful_count, created_at, version
 		FROM reviews
 		WHERE (rating = $1 OR $1 = 0)
 		AND (content ILIKE '%%' || $2 || '%%' OR $2 = '')
@@ -160,6 +166,7 @@ func (r ReviewModel) GetAll(rating int, content string, filters Filters) ([]*Rev
 			&review.Content,
 			&review.HelpfulCount,
 			&review.CreatedAt,
+			&review.Version,
 		)
 		if err != nil {
 			return nil, Metadata{}, err
@@ -178,7 +185,7 @@ func (r ReviewModel) GetAll(rating int, content string, filters Filters) ([]*Rev
 func (r ReviewModel) GetAllForProduct(productID int64, rating int, content string, filters Filters) ([]*Review, Metadata, error) {
 
 	query := fmt.Sprintf(`
-		SELECT COUNT(*) OVER(), id, product_id, rating, content, helpful_count, created_at
+		SELECT COUNT(*) OVER(), id, product_id, rating, content, helpful_count, created_at, version
 		FROM reviews
 		WHERE product_id = $1
 		AND (rating = $2 OR $2 = 0)
@@ -208,6 +215,7 @@ func (r ReviewModel) GetAllForProduct(productID int64, rating int, content strin
 			&review.Content,
 			&review.HelpfulCount,
 			&review.CreatedAt,
+			&review.Version,
 		)
 		if err != nil {
 			return nil, Metadata{}, err

@@ -79,7 +79,7 @@ func (a *applicationDependencies) displayReviewHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	// Step 2: Retrieve the review from the database
+	// Retrieve the review from the database
 	review, err := a.reviewModel.Get(productID, reviewID)
 	if err != nil {
 		switch {
