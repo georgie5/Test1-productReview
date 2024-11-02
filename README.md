@@ -2,23 +2,32 @@ Owner: George Kotch
 Test: 1 - productreviewapp
 
 a. Create a product: 
-    ```make addproduct name="" category="" image_url="" ```
-
+    ```
+    make addproduct name="" category="" image_url="" 
+    ```
 
 b. display a specific product
-   ```curl -X GET http://localhost:4000/v1/products/1``` 
+   ```
+   curl -X GET http://localhost:4000/v1/products/1
+   ``` 
 
    
 c. update a specific product
-    ```curl -X PATCH -H "Content-Type: application/json" -d '{"name":"update example"}' http://localhost:4000/v1/products/(productid)```
+    ```
+    curl -X PATCH -H "Content-Type: application/json" -d '{"name":"update example"}' http://localhost:4000/v1/products/:productid
+    ```
 
     
 d. delete a specific product
-     ```curl -X DELETE http://localhost:4000/v1/products/(productid)```
+     ```
+     curl -X DELETE http://localhost:4000/v1/products/:productid
+     ```
 
      
 e. display all products
-   ``` curl -X GET http://localhost:4000/v1/products ```
+   ``` 
+   curl -X GET http://localhost:4000/v1/products
+   ```
 
 
 f. Perform searching, filtering, sorting on products
