@@ -27,6 +27,9 @@ func (a *applicationDependencies) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/products/:prod_id/reviews/:review_id", a.displayReviewHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/products/:prod_id/reviews/:review_id", a.updateReviewHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/products/:prod_id/reviews/:review_id", a.deleteReviewHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/reviews", a.listReviewHandler)                                              // list of all reviews
+	router.HandlerFunc(http.MethodGet, "/v1/products/:prod_id/reviews", a.listReviewsForProductHandler)                 //list of all reviews for specific product
+	router.HandlerFunc(http.MethodPost, "/v1/products/:prod_id/reviews/:review_id/helpful", a.markReviewHelpfulHandler) //helpful count for products that were helpful
 
 	return a.recoverPanic(router)
 

@@ -216,4 +216,139 @@ func (a *applicationDependencies) deleteReviewHandler(w http.ResponseWriter, r *
 
 func (a *applicationDependencies) listReviewHandler(w http.ResponseWriter, r *http.Request) {
 
+	var queryParametersData struct {
+		Rating  int
+		Content string
+		data.Filters
+	}
+
+	// Step 2: Parse query parameters
+	query := r.URL.Query()
+	queryParametersData.Rating = a.getSingleIntegerParameter(query, "rating", 0, nil) // default 0 = no filter
+	queryParametersData.Content = a.getSingleQueryParameter(query, "content", "")
+
+	// Pagination and sorting
+	v := validator.New()
+	queryParametersData.Filters.Page = a.getSingleIntegerParameter(query, "page", 1, v)
+	queryParametersData.Filters.PageSize = a.getSingleIntegerParameter(query, "page_size", 10, v)
+	queryParametersData.Filters.Sort = a.getSingleQueryParameter(query, "sort", "id")
+	queryParametersData.Filters.SortSafeList = []string{"id", "rating", "helpful_count", "-id", "-rating", "-helpful_count"}
+
+	//  Validate filters
+	data.ValidateFilters(v, queryParametersData.Filters)
+	if !v.IsEmpty() {
+		a.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Retrieve reviews from the database
+	reviews, metadata, err := a.reviewModel.GetAll(queryParametersData.Rating, queryParametersData.Content, queryParametersData.Filters)
+	if err != nil {
+		a.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Send the JSON response with reviews and pagination metadata
+	responseData := envelope{
+		"reviews":   reviews,
+		"@metadata": metadata,
+	}
+	err = a.writeJSON(w, http.StatusOK, responseData, nil)
+	if err != nil {
+		a.serverErrorResponse(w, r, err)
+	}
+}
+
+func (a *applicationDependencies) listReviewsForProductHandler(w http.ResponseWriter, r *http.Request) {
+
+	//  Get the product ID from the URL
+	productID, err := a.readIDParam(r, "prod_id")
+	if err != nil {
+		a.notFoundResponse(w, r)
+		return
+	}
+
+	//  Set up query parameter struct
+	var queryParametersData struct {
+		Rating  int
+		Content string
+		data.Filters
+	}
+
+	// Parse query parameters
+	query := r.URL.Query()
+	queryParametersData.Rating = a.getSingleIntegerParameter(query, "rating", 0, nil)
+	queryParametersData.Content = a.getSingleQueryParameter(query, "content", "")
+
+	// Pagination and sorting
+	v := validator.New()
+	queryParametersData.Filters.Page = a.getSingleIntegerParameter(query, "page", 1, v)
+	queryParametersData.Filters.PageSize = a.getSingleIntegerParameter(query, "page_size", 10, v)
+	queryParametersData.Filters.Sort = a.getSingleQueryParameter(query, "sort", "id")
+	queryParametersData.Filters.SortSafeList = []string{"id", "rating", "helpful_count", "-id", "-rating", "-helpful_count"}
+
+	// Validate filters
+	data.ValidateFilters(v, queryParametersData.Filters)
+	if !v.IsEmpty() {
+		a.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Retrieve reviews from the database
+	reviews, metadata, err := a.reviewModel.GetAllForProduct(productID, queryParametersData.Rating, queryParametersData.Content, queryParametersData.Filters)
+	if err != nil {
+		a.serverErrorResponse(w, r, err)
+		return
+	}
+
+	//  Send the JSON response
+	responseData := envelope{
+		"reviews":   reviews,
+		"@metadata": metadata,
+	}
+	err = a.writeJSON(w, http.StatusOK, responseData, nil)
+	if err != nil {
+		a.serverErrorResponse(w, r, err)
+	}
+}
+
+func (a *applicationDependencies) markReviewHelpfulHandler(w http.ResponseWriter, r *http.Request) {
+
+	productID, err := a.readIDParam(r, "prod_id")
+	if err != nil {
+		a.notFoundResponse(w, r)
+		return
+	}
+
+	reviewID, err := a.readIDParam(r, "review_id")
+	if err != nil {
+		a.notFoundResponse(w, r)
+		return
+	}
+
+	// Increment helpful_count in the database
+	err = a.reviewModel.IncrementHelpfulCount(productID, reviewID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			a.notFoundResponse(w, r)
+		default:
+			a.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// Retrieve the updated review to show the incremented helpful_count
+	review, err := a.reviewModel.Get(productID, reviewID)
+	if err != nil {
+		a.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Send a JSON response with the updated review
+	data := envelope{"review": review}
+	err = a.writeJSON(w, http.StatusOK, data, nil)
+	if err != nil {
+		a.serverErrorResponse(w, r, err)
+	}
 }

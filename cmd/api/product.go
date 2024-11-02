@@ -216,14 +216,14 @@ func (a *applicationDependencies) listProductHandler(w http.ResponseWriter, r *h
 	queryParametersData.Filters.Sort = a.getSingleQueryParameter(query, "sort", "id")
 	queryParametersData.Filters.SortSafeList = []string{"id", "name", "category", "-id", "-name", "-category"}
 
-	// Step 3: Validate the filters
+	// Validate the filters
 	data.ValidateFilters(v, queryParametersData.Filters)
 	if !v.IsEmpty() {
 		a.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	// Step 4: Fetch products from the database
+	// Fetch products from the database
 	products, metadata, err := a.productModel.GetAll(queryParametersData.Name, queryParametersData.Category, queryParametersData.Filters)
 	if err != nil {
 		a.serverErrorResponse(w, r, err)

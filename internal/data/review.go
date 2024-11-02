@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/georgie5/productReview/internal/validator"
@@ -106,6 +107,129 @@ func (r ReviewModel) Delete(productID, reviewID int64) error {
 	query := `
 		DELETE FROM reviews
 		WHERE product_id = $1 AND id = $2
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := r.DB.ExecContext(ctx, query, productID, reviewID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r ReviewModel) GetAll(rating int, content string, filters Filters) ([]*Review, Metadata, error) {
+
+	query := fmt.Sprintf(`
+		SELECT COUNT(*) OVER(), id, product_id, rating, content, helpful_count, created_at
+		FROM reviews
+		WHERE (rating = $1 OR $1 = 0)
+		AND (content ILIKE '%%' || $2 || '%%' OR $2 = '')
+		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := r.DB.QueryContext(ctx, query, rating, content, filters.limit(), filters.offset())
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+	defer rows.Close()
+
+	var reviews []*Review
+	totalRecords := 0
+
+	for rows.Next() {
+		var review Review
+		err := rows.Scan(
+			&totalRecords,
+			&review.ID,
+			&review.ProductID,
+			&review.Rating,
+			&review.Content,
+			&review.HelpfulCount,
+			&review.CreatedAt,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+		reviews = append(reviews, &review)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetaData(totalRecords, filters.Page, filters.PageSize)
+	return reviews, metadata, nil
+}
+
+func (r ReviewModel) GetAllForProduct(productID int64, rating int, content string, filters Filters) ([]*Review, Metadata, error) {
+
+	query := fmt.Sprintf(`
+		SELECT COUNT(*) OVER(), id, product_id, rating, content, helpful_count, created_at
+		FROM reviews
+		WHERE product_id = $1
+		AND (rating = $2 OR $2 = 0)
+		AND (content ILIKE '%%' || $3 || '%%' OR $3 = '')
+		ORDER BY %s %s, id ASC
+		LIMIT $4 OFFSET $5`, filters.sortColumn(), filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := r.DB.QueryContext(ctx, query, productID, rating, content, filters.limit(), filters.offset())
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+	defer rows.Close()
+
+	var reviews []*Review
+	totalRecords := 0
+
+	for rows.Next() {
+		var review Review
+		err := rows.Scan(
+			&totalRecords,
+			&review.ID,
+			&review.ProductID,
+			&review.Rating,
+			&review.Content,
+			&review.HelpfulCount,
+			&review.CreatedAt,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+		reviews = append(reviews, &review)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetaData(totalRecords, filters.Page, filters.PageSize)
+	return reviews, metadata, nil
+}
+
+func (r ReviewModel) IncrementHelpfulCount(productID, reviewID int64) error {
+
+	query := `
+		UPDATE reviews
+		SET helpful_count = helpful_count + 1
+		WHERE product_id = $1 AND id = $2
+		RETURNING helpful_count
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
