@@ -31,6 +31,8 @@ func (a *applicationDependencies) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/products/:prod_id/reviews", a.listReviewsForProductHandler)                 //list of all reviews for specific product
 	router.HandlerFunc(http.MethodPost, "/v1/products/:prod_id/reviews/:review_id/helpful", a.markReviewHelpfulHandler) //helpful count for products that were helpful
 
-	return a.recoverPanic(router)
+	// Request sent first to recoverPanic() then sent to rateLimit()
+	// finally it is sent to the router.
+	return a.recoverPanic(a.rateLimit(router))
 
 }
